@@ -1,0 +1,141 @@
+// Schema do marketplace de fotos
+// Rode `npx prisma migrate dev --name init` depois de configurar DATABASE_URL
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum StatusAnuncio {
+  ONLINE
+  OFFLINE
+}
+
+enum StatusVenda {
+  PENDENTE
+  PAGO
+  CANCELADO
+  EXPIRADO
+}
+
+enum Gateway {
+  MERCADO_PAGO
+  STRIPE
+}
+
+// Um "photoshoot": ex. "Ipanema - Dia 23/12"
+model Anuncio {
+  id          String         @id @default(cuid())
+  titulo      String
+  local       String
+  data        DateTime
+  precoBase   Decimal        @db.Decimal(10, 2) // preço padrão por foto avulsa
+  status      StatusAnuncio  @default(ONLINE)
+  capaUrl     String? // preview usado no card da home
+  fotografo   String?
+  criadoEm    DateTime       @default(now())
+  atualizadoEm DateTime      @updatedAt
+
+  fotos Foto[]
+
+  @@index([status])
+  @@index([data])
+}
+
+// Cada foto individual dentro de um anúncio
+model Foto {
+  id            String  @id @default(cuid())
+  anuncioId     String
+  anuncio       Anuncio @relation(fields: [anuncioId], references: [id], onDelete: Cascade)
+
+  codigo        String  @unique // ex: "020A7197", exibido ao usuário
+  urlPreview    String  // versão com marca d'água, baixa resolução — pública
+  urlOriginal   String  // versão em alta, arquivo privado no bucket — nunca exposta direto
+  preco         Decimal @db.Decimal(10, 2)
+  ordem         Int     @default(0)
+  criadoEm      DateTime @default(now())
+
+  itensVenda ItemVenda[]
+
+  @@index([anuncioId])
+}
+
+// Comprador — identificado só por e-mail, sem senha (login por código)
+model Usuario {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  nome      String?
+  criadoEm  DateTime @default(now())
+
+  vendas       Venda[]
+  codigosLogin CodigoLogin[]
+}
+
+// Código de 6 dígitos enviado por e-mail para login
+model CodigoLogin {
+  id         String   @id @default(cuid())
+  usuarioId  String
+  usuario    Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  codigo     String
+  expiraEm   DateTime
+  usadoEm    DateTime?
+  criadoEm   DateTime @default(now())
+
+  @@index([usuarioId, codigo])
+}
+
+// Um pedido de compra (pode conter 1+ fotos)
+model Venda {
+  id            String      @id @default(cuid())
+  usuarioId     String
+  usuario       Usuario     @relation(fields: [usuarioId], references: [id])
+  valorTotal    Decimal     @db.Decimal(10, 2)
+  status        StatusVenda @default(PENDENTE)
+  gateway       Gateway?
+  idPagamentoExterno String? // id retornado pelo Mercado Pago / Stripe
+  criadoEm      DateTime    @default(now())
+  pagoEm        DateTime?
+
+  itens       ItemVenda[]
+  transacoes  Transacao[]
+
+  @@index([status])
+  @@index([criadoEm])
+}
+
+// Relação N:N entre Venda e Foto, guardando o preço no momento da compra
+model ItemVenda {
+  id       String @id @default(cuid())
+  vendaId  String
+  venda    Venda  @relation(fields: [vendaId], references: [id], onDelete: Cascade)
+  fotoId   String
+  foto     Foto   @relation(fields: [fotoId], references: [id])
+  preco    Decimal @db.Decimal(10, 2)
+
+  @@unique([vendaId, fotoId])
+}
+
+// Log financeiro imutável — usado no relatório do admin
+model Transacao {
+  id                 String   @id @default(cuid())
+  vendaId            String
+  venda              Venda    @relation(fields: [vendaId], references: [id])
+  metodo             String   // "pix" | "cartao" | etc.
+  valor              Decimal  @db.Decimal(10, 2)
+  idExternoGateway   String?
+  criadoEm           DateTime @default(now())
+
+  @@index([criadoEm])
+}
+
+// Admins do painel — separado de Usuario (comprador)
+model Admin {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  senhaHash String
+  criadoEm  DateTime @default(now())
+}
