@@ -1,90 +1,71 @@
 import { db } from "@/lib/db";
+import { brl } from "@/lib/format";
 
-export default async function AdminDashboard() {
-  const [totalVendas, receitaAgregada, anunciosOnline, vendasPorAnuncio] = await Promise.all([
-    db.venda.count({ where: { status: "PAGO" } }),
-    db.transacao.aggregate({ _sum: { valor: true } }),
-    db.anuncio.count({ where: { status: "ONLINE" } }),
-    db.anuncio.findMany({
-      select: {
-        id: true,
-        titulo: true,
-        local: true,
-        status: true,
-        fotos: {
-          select: {
-            itensVenda: {
-              where: { venda: { status: "PAGO" } },
-              select: { preco: true }
-            }
-          }
-        }
-      }
-    })
-  ]);
+export default function AdminDashboard() {
+  const pagas = db.vendas.filter((v) => v.status === "PAGO");
+  const receita = db.transacoes.reduce((s, t) => s + t.valor, 0);
+  const anunciosOnline = db.anuncios.filter((a) => a.status === "ONLINE").length;
 
-  const linhas = vendasPorAnuncio.map((a) => {
-    const itens = a.fotos.flatMap((f) => f.itensVenda);
-    return {
-      id: a.id,
-      titulo: a.titulo,
-      local: a.local,
-      status: a.status,
-      qtdVendas: itens.length,
-      total: itens.reduce((s, i) => s + Number(i.preco), 0)
-    };
+  const linhas = db.anuncios.map((a) => {
+    const itens = pagas.flatMap((v) => v.itens).filter((i) => db.fotos.find((f) => f.id === i.fotoId)?.anuncioId === a.id);
+    return { ...a, qtdVendas: itens.length, total: itens.reduce((s, i) => s + i.preco, 0) };
   });
 
   return (
     <div>
-      <h1 className="font-display text-2xl text-ink">Visão geral</h1>
+      <h1 className="text-2xl font-semibold tracking-tight text-ink">Visão geral</h1>
 
-      <div className="mt-6 grid grid-cols-3 gap-4">
-        <Card titulo="Vendas pagas" valor={String(totalVendas)} />
-        <Card titulo="Receita total" valor={`R$ ${Number(receitaAgregada._sum.valor ?? 0).toFixed(2).replace(".", ",")}`} />
-        <Card titulo="Anúncios online" valor={String(anunciosOnline)} />
-      </div>
+      <dl className="panel mt-6 grid divide-y divide-line sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+        <Indicador titulo="Vendas pagas" valor={String(pagas.length)} />
+        <Indicador titulo="Receita total" valor={brl(receita)} />
+        <Indicador titulo="Anúncios online" valor={String(anunciosOnline)} />
+      </dl>
 
-      <h2 className="mt-10 mb-3 font-display text-sm text-ink">Vendas por anúncio</h2>
-      <table className="w-full overflow-hidden rounded-xl bg-white text-sm ring-1 ring-black/5">
-        <thead className="bg-ocean text-sand">
-          <tr>
-            <th className="px-4 py-3 text-left font-medium">Anúncio</th>
-            <th className="px-4 py-3 text-left font-medium">Local</th>
-            <th className="px-4 py-3 text-left font-medium">Status</th>
-            <th className="px-4 py-3 text-right font-medium">Vendas</th>
-            <th className="px-4 py-3 text-right font-medium">Total</th>
-          </tr>
-        </thead>
-        <tbody>
-          {linhas.map((l) => (
-            <tr key={l.id} className="border-t border-black/5">
-              <td className="px-4 py-3">{l.titulo}</td>
-              <td className="px-4 py-3 text-ink/60">{l.local}</td>
-              <td className="px-4 py-3">
-                <span
-                  className={`rounded-full px-2 py-0.5 text-xs ${
-                    l.status === "ONLINE" ? "bg-aqua/15 text-aqua" : "bg-ink/10 text-ink/50"
-                  }`}
-                >
-                  {l.status === "ONLINE" ? "Online" : "Offline"}
-                </span>
-              </td>
-              <td className="px-4 py-3 text-right font-mono">{l.qtdVendas}</td>
-              <td className="px-4 py-3 text-right font-mono">R$ {l.total.toFixed(2).replace(".", ",")}</td>
+      <h2 className="mb-3 mt-10 text-sm font-semibold text-ink">Vendas por anúncio</h2>
+      <div className="panel overflow-x-auto">
+        <table className="table-base">
+          <thead>
+            <tr>
+              <th>Anúncio</th>
+              <th>Local</th>
+              <th>Status</th>
+              <th className="!text-right">Fotos vendidas</th>
+              <th className="!text-right">Total</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {linhas.map((l) => (
+              <tr key={l.id}>
+                <td className="font-medium text-ink">{l.titulo}</td>
+                <td className="text-muted">{l.local}</td>
+                <td>
+                  <Status online={l.status === "ONLINE"} />
+                </td>
+                <td className="tabular text-right">{l.qtdVendas}</td>
+                <td className="tabular text-right">{brl(l.total)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
 
-function Card({ titulo, valor }: { titulo: string; valor: string }) {
+function Indicador({ titulo, valor }: { titulo: string; valor: string }) {
   return (
-    <div className="rounded-xl bg-white p-5 ring-1 ring-black/5">
-      <p className="text-xs uppercase tracking-wide text-ink/50">{titulo}</p>
-      <p className="mt-1 font-display text-2xl text-ink">{valor}</p>
+    <div className="p-5">
+      <dt className="text-sm text-muted">{titulo}</dt>
+      <dd className="tabular mt-1 text-2xl font-semibold text-ink">{valor}</dd>
     </div>
+  );
+}
+
+function Status({ online }: { online: boolean }) {
+  return (
+    <span className={`inline-flex items-center gap-1.5 text-xs font-medium ${online ? "text-success" : "text-muted"}`}>
+      <span className={`h-1.5 w-1.5 rounded-full ${online ? "bg-success" : "bg-muted/50"}`} />
+      {online ? "Online" : "Offline"}
+    </span>
   );
 }

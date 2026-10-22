@@ -1,13 +1,13 @@
 // Schema do marketplace de fotos
-// Rode `npx prisma migrate dev --name init` depois de configurar DATABASE_URL
+// Rode `bun prisma migrate dev --Fottu init` depois de configurar DATABASE_URL
 
 generator client {
   provider = "prisma-client-js"
+  output   = "./generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 enum StatusAnuncio {

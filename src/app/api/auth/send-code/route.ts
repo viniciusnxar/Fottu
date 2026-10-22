@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { db } from "@/lib/db";
+import { db, novoId } from "@/lib/db";
 import { gerarCodigoNumerico } from "@/lib/auth";
-import { enviarCodigoLogin } from "@/lib/email";
 
 const schema = z.object({ email: z.string().email() });
 
@@ -11,24 +10,24 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json({ erro: "E-mail inválido" }, { status: 400 });
   }
-  const { email } = parsed.data;
+  const email = parsed.data.email.toLowerCase();
 
-  const usuario = await db.usuario.upsert({
-    where: { email },
-    update: {},
-    create: { email }
-  });
+  let usuario = db.usuarios.find((u) => u.email === email);
+  if (!usuario) {
+    usuario = { id: novoId(), email, criadoEm: new Date() };
+    db.usuarios.push(usuario);
+  }
 
   const codigo = gerarCodigoNumerico();
-  await db.codigoLogin.create({
-    data: {
-      usuarioId: usuario.id,
-      codigo,
-      expiraEm: new Date(Date.now() + 15 * 60 * 1000)
-    }
+  db.codigos.push({
+    id: novoId(),
+    usuarioId: usuario.id,
+    codigo,
+    expiraEm: new Date(Date.now() + 15 * 60 * 1000),
+    usadoEm: null,
+    criadoEm: new Date()
   });
 
-  await enviarCodigoLogin(email, codigo);
-
-  return NextResponse.json({ ok: true });
+  // shortcut: modo offline sem e-mail, o código volta na resposta; envie por e-mail em produção.
+  return NextResponse.json({ ok: true, codigoDemo: codigo });
 }

@@ -1,20 +1,26 @@
 import type { Metadata } from "next";
-import { Archivo_Black, Inter, IBM_Plex_Mono } from "next/font/google";
+import localFont from "next/font/local";
+import SiteHeader from "@/components/SiteHeader";
 import "./globals.css";
 
-const display = Archivo_Black({ subsets: ["latin"], weight: "400", variable: "--font-display" });
-const body = Inter({ subsets: ["latin"], variable: "--font-body" });
-const mono = IBM_Plex_Mono({ subsets: ["latin"], weight: ["400", "500"], variable: "--font-mono" });
+// Fonte embutida no projeto: funciona offline, sem Google Fonts.
+const sans = localFont({ src: "../fonts/Geist-Variable.woff2", variable: "--font-sans", weight: "100 900" });
+
+// Dados vivem em memória: toda página é renderizada na hora.
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Marketplace de Fotos — Praia & Esporte",
-  description: "Encontre e compre suas fotos em alta resolução dos seus dias na praia."
+  title: "Fottu — Encontre e compre suas fotos",
+  description: "Encontre suas fotos por sessão, veja a prévia e baixe em alta resolução."
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR" className={`${display.variable} ${body.variable} ${mono.variable}`}>
-      <body className="font-body">{children}</body>
+    <html lang="pt-BR" className={sans.variable}>
+      <body className="min-h-screen font-sans">
+        <SiteHeader />
+        {children}
+      </body>
     </html>
   );
 }

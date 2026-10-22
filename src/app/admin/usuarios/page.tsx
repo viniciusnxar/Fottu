@@ -1,39 +1,45 @@
 import { db } from "@/lib/db";
+import { brl, dataCurta } from "@/lib/format";
 
-export default async function AdminUsuariosPage() {
-  const usuarios = await db.usuario.findMany({
-    include: { vendas: { where: { status: "PAGO" } } },
-    orderBy: { criadoEm: "desc" }
-  });
+export default function AdminUsuariosPage() {
+  const usuarios = [...db.usuarios].sort((a, b) => b.criadoEm.getTime() - a.criadoEm.getTime());
 
   return (
     <div>
-      <h1 className="font-display text-2xl text-ink">Usuários</h1>
+      <h1 className="text-2xl font-semibold tracking-tight text-ink">Usuários</h1>
 
-      <table className="mt-6 w-full overflow-hidden rounded-xl bg-white text-sm ring-1 ring-black/5">
-        <thead className="bg-ocean text-sand">
-          <tr>
-            <th className="px-4 py-3 text-left font-medium">E-mail</th>
-            <th className="px-4 py-3 text-left font-medium">Cadastro</th>
-            <th className="px-4 py-3 text-right font-medium">Compras</th>
-            <th className="px-4 py-3 text-right font-medium">Total gasto</th>
-          </tr>
-        </thead>
-        <tbody>
-          {usuarios.map((u) => (
-            <tr key={u.id} className="border-t border-black/5">
-              <td className="px-4 py-3">{u.email}</td>
-              <td className="px-4 py-3 text-ink/60">
-                {new Intl.DateTimeFormat("pt-BR").format(u.criadoEm)}
-              </td>
-              <td className="px-4 py-3 text-right font-mono">{u.vendas.length}</td>
-              <td className="px-4 py-3 text-right font-mono">
-                R$ {u.vendas.reduce((s, v) => s + Number(v.valorTotal), 0).toFixed(2).replace(".", ",")}
-              </td>
+      <div className="panel mt-6 overflow-x-auto">
+        <table className="table-base">
+          <thead>
+            <tr>
+              <th>E-mail</th>
+              <th>Cadastro</th>
+              <th className="!text-right">Compras</th>
+              <th className="!text-right">Total gasto</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {usuarios.length === 0 && (
+              <tr>
+                <td colSpan={4} className="py-12 text-center text-muted">
+                  Nenhum usuário ainda. Quem entrar pelo login aparece aqui.
+                </td>
+              </tr>
+            )}
+            {usuarios.map((u) => {
+              const vendas = db.vendas.filter((v) => v.usuarioId === u.id && v.status === "PAGO");
+              return (
+                <tr key={u.id}>
+                  <td className="text-ink">{u.email}</td>
+                  <td className="text-muted">{dataCurta(u.criadoEm)}</td>
+                  <td className="tabular text-right">{vendas.length}</td>
+                  <td className="tabular text-right">{brl(vendas.reduce((s, v) => s + v.valorTotal, 0))}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

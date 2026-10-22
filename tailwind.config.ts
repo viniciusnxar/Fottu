@@ -5,20 +5,20 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        ocean: "#0E2A3D",   // fundo escuro, hero, admin
-        sand: "#F3E9D6",    // fundo claro do marketplace
-        coral: "#FF6B4A",   // preço, CTA
-        aqua: "#2FB6A6",    // status online, links
-        ink: "#16221F"      // texto principal
+        canvas: "#FAFAF9", // fundo da página
+        surface: "#FFFFFF", // cartões, painéis
+        line: "#E7E5E4", // bordas
+        ink: "#18181B", // texto principal, CTA primário
+        muted: "#5F5F68", // texto secundário (contraste ≥ 4.5:1 no canvas)
+        accent: "#2B59F5", // seleção, links, foco
+        success: "#15803D"
       },
       fontFamily: {
-        display: ["var(--font-display)"],
-        body: ["var(--font-body)"],
-        mono: ["var(--font-mono)"]
+        sans: ["var(--font-sans)", "ui-sans-serif", "system-ui", "sans-serif"]
       },
-      backgroundImage: {
-        perforation:
-          "radial-gradient(circle, transparent 4px, #F3E9D6 4.5px)"
+      boxShadow: {
+        soft: "0 1px 2px rgb(24 24 27 / 0.04), 0 4px 16px rgb(24 24 27 / 0.06)",
+        lift: "0 2px 4px rgb(24 24 27 / 0.06), 0 12px 32px rgb(24 24 27 / 0.12)"
       }
     }
   },

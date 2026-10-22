@@ -11,14 +11,21 @@ checkout Pix (Mercado Pago), login sem senha (código por e-mail) e painel admin
 - **Resend** para envio de e-mails (código de login, confirmação de compra)
 - **Mercado Pago** (Pix) — Stripe pode ser adicionado do mesmo jeito depois
 
-## Como rodar
+## Como rodar (modo offline — sem banco, sem .env)
 
 ```bash
 npm install
-cp .env.example .env       # preencha com suas credenciais
-npx prisma migrate dev --name init
-npm run dev
+npm run dev                # abra http://localhost:3000
 ```
+
+Tudo roda em memória com dados de demonstração (`src/lib/db.ts`) e some ao reiniciar:
+
+- **Login:** digite qualquer e-mail; o código de 6 dígitos aparece na tela.
+- **Pix:** no checkout, "Simular pagamento Pix" marca o pedido como pago.
+- **Downloads:** em "Minhas compras", só para fotos pagas.
+- **Admin:** `/admin` (sem login no modo offline).
+
+Para produção, volte a ligar Prisma, R2/S3, Resend e Mercado Pago (ver `prisma/schema.prisma`).
 
 ## Estrutura
 

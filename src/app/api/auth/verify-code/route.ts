@@ -10,21 +10,21 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json({ erro: "Dados inválidos" }, { status: 400 });
   }
-  const { email, codigo } = parsed.data;
+  const { codigo } = parsed.data;
+  const email = parsed.data.email.toLowerCase();
 
-  const usuario = await db.usuario.findUnique({ where: { email } });
+  const usuario = db.usuarios.find((u) => u.email === email);
   if (!usuario) return NextResponse.json({ erro: "Código inválido" }, { status: 401 });
 
-  const registro = await db.codigoLogin.findFirst({
-    where: { usuarioId: usuario.id, codigo, usadoEm: null, expiraEm: { gt: new Date() } },
-    orderBy: { criadoEm: "desc" }
-  });
+  const registro = db.codigos
+    .filter((c) => c.usuarioId === usuario.id && c.codigo === codigo && !c.usadoEm && c.expiraEm > new Date())
+    .at(-1);
 
   if (!registro) {
     return NextResponse.json({ erro: "Código inválido ou expirado" }, { status: 401 });
   }
 
-  await db.codigoLogin.update({ where: { id: registro.id }, data: { usadoEm: new Date() } });
+  registro.usadoEm = new Date();
   criarSessao(usuario.id, usuario.email);
 
   return NextResponse.json({ ok: true });

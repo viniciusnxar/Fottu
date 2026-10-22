@@ -1,93 +1,54 @@
-import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import sharp from "sharp";
-
-// Cliente compatível com Cloudflare R2 e AWS S3 (mesma API)
-const s3 = new S3Client({
-  region: "auto",
-  endpoint: process.env.STORAGE_ENDPOINT,
-  credentials: {
-    accessKeyId: process.env.STORAGE_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.STORAGE_SECRET_ACCESS_KEY!
-  }
-});
-
-const BUCKET = process.env.STORAGE_BUCKET!;
+import type { Foto } from "@/lib/db";
 
 /**
- * Recebe o arquivo original (alta resolução) e:
- * 1. Salva o original em uma pasta privada do bucket (nunca servida publicamente)
- * 2. Gera uma versão de preview: resolução reduzida + marca d'água diagonal
- *    e salva em pasta pública
- * Retorna as chaves (keys) de ambos os arquivos no bucket.
+ * Upload offline: guarda o original em memória e gera um preview em baixa
+ * resolução com marca d'água repetida, para dificultar reuso/upscale.
  */
-export async function processarUploadFoto(params: {
-  buffer: Buffer;
-  anuncioId: string;
-  codigo: string;
-}) {
-  const { buffer, anuncioId, codigo } = params;
-
-  const keyOriginal = `originais/${anuncioId}/${codigo}.jpg`;
-  const keyPreview = `previews/${anuncioId}/${codigo}.jpg`;
-
-  // 1. Original — qualidade máxima, acesso restrito (sem ACL pública)
-  await s3.send(
-    new PutObjectCommand({
-      Bucket: BUCKET,
-      Key: keyOriginal,
-      Body: buffer,
-      ContentType: "image/jpeg"
-    })
-  );
-
-  // 2. Preview — reduz resolução e aplica marca d'água repetida (mesmo padrão
-  //    diagonal usado no exemplo do produto) para dificultar reuso/upscale
-  const marcaDagua = await gerarSvgMarcaDagua();
-  const previewBuffer = await sharp(buffer)
-    .resize({ width: 900, withoutEnlargement: true }) // baixa resolução
-    .composite([{ input: marcaDagua, tile: true, blend: "over" }])
+export async function processarUploadFoto(buffer: Buffer) {
+  const preview = await sharp(buffer)
+    .resize({ width: 900, withoutEnlargement: true })
+    .composite([{ input: Buffer.from(blocoMarcaDagua()), tile: true, blend: "over" }])
     .jpeg({ quality: 72 })
     .toBuffer();
-
-  await s3.send(
-    new PutObjectCommand({
-      Bucket: BUCKET,
-      Key: keyPreview,
-      Body: previewBuffer,
-      ContentType: "image/jpeg",
-      ACL: "public-read"
-    })
-  );
-
-  return {
-    keyOriginal,
-    keyPreview,
-    urlPreview: `${process.env.STORAGE_PUBLIC_URL}/${keyPreview}`
-  };
+  return { arquivo: buffer, preview };
 }
 
-// Gera um bloco SVG com o padrão diagonal + ícone, repetido via `tile: true`
-async function gerarSvgMarcaDagua(): Promise<Buffer> {
-  const svg = `
-    <svg width="220" height="220" xmlns="http://www.w3.org/2000/svg">
-      <g stroke="#F3E9D6" stroke-opacity="0.35" stroke-width="2">
-        <line x1="0" y1="220" x2="220" y2="0" />
-      </g>
-      <text x="20" y="120" fill="#F3E9D6" fill-opacity="0.45"
-        font-family="sans-serif" font-size="14" transform="rotate(-35 20 120)">
-        PREVIEW
-      </text>
-    </svg>`;
-  return Buffer.from(svg);
+function blocoMarcaDagua() {
+  return `<svg width="220" height="220" xmlns="http://www.w3.org/2000/svg">
+    <text x="20" y="130" fill="#fff" fill-opacity="0.45" font-family="sans-serif" font-size="15"
+      font-weight="700" letter-spacing="3" transform="rotate(-30 20 130)">FOTTU · PRÉVIA</text>
+  </svg>`;
 }
 
 /**
- * Gera uma URL assinada e temporária (expira em X segundos) para o comprador
- * baixar o arquivo ORIGINAL. Só deve ser chamada depois de confirmar que
- * a Venda está com status PAGO e pertence ao usuário logado.
+ * Imagem de demonstração (fotos sintéticas do modo offline): uma cena ao ar
+ * livre gerada em SVG a partir da matiz da foto. O preview leva marca d'água.
  */
-export async function gerarUrlDownload(keyOriginal: string, expiraEmSegundos = 300) {
-  const command = new GetObjectCommand({ Bucket: BUCKET, Key: keyOriginal });
-  return getSignedUrl(s3, command, { expiresIn: expiraEmSegundos });
+export function svgDemo(foto: Foto, comMarca: boolean) {
+  const h = foto.matiz;
+  const n = Number(foto.codigo.replace(/\D/g, "")) || 0;
+  const sol = 180 + (n * 97) % 840;
+  const pessoa = 140 + (n * 53) % 920;
+  const marca = comMarca
+    ? `<defs><pattern id="m" width="300" height="200" patternUnits="userSpaceOnUse" patternTransform="rotate(-30)">
+         <text x="10" y="110" fill="#fff" fill-opacity="0.5" font-family="sans-serif" font-size="22" font-weight="700" letter-spacing="4">FOTTU · PRÉVIA</text>
+       </pattern></defs><rect width="1200" height="900" fill="url(#m)"/>`
+    : "";
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" width="1200" height="900">
+    <linearGradient id="c" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="hsl(${h} 60% 72%)"/><stop offset="1" stop-color="hsl(${(h + 30) % 360} 70% 88%)"/>
+    </linearGradient>
+    <rect width="1200" height="900" fill="url(#c)"/>
+    <circle cx="${sol}" cy="230" r="90" fill="hsl(${(h + 40) % 360} 90% 92%)"/>
+    <path d="M0 520 Q300 460 600 510 T1200 490 V900 H0Z" fill="hsl(${h} 45% 45%)"/>
+    <path d="M0 640 Q400 600 800 650 T1200 630 V900 H0Z" fill="hsl(${(h + 20) % 360} 35% 62%)"/>
+    <g fill="hsl(${h} 40% 16%)">
+      <circle cx="${pessoa}" cy="520" r="34"/>
+      <path d="M${pessoa - 50} 760 Q${pessoa} 540 ${pessoa + 50} 760Z"/>
+    </g>
+    <text x="40" y="70" fill="#fff" fill-opacity="0.85" font-family="sans-serif" font-size="26" font-weight="600">${foto.codigo} · foto de demonstração</text>
+    ${marca}
+  </svg>`;
 }

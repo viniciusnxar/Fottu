@@ -4,17 +4,67 @@
 
 html {
   scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
 }
 
 body {
-  background-color: #F3E9D6;
-  color: #16221F;
+  background-color: #fafaf9;
+  color: #18181b;
+  font-feature-settings: "ss01", "cv11";
+}
+
+::selection {
+  background: #2b59f5;
+  color: #fff;
+}
+
+input,
+textarea {
+  caret-color: #2b59f5;
 }
 
 /* Foco visível para acessibilidade de teclado */
 :focus-visible {
-  outline: 2px solid #FF6B4A;
+  outline: 2px solid #2b59f5;
   outline-offset: 2px;
+}
+
+* {
+  scrollbar-color: #d6d3d1 transparent;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium transition duration-200 ease-out disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply btn bg-ink text-white hover:bg-ink/85;
+  }
+  .btn-secondary {
+    @apply btn bg-surface text-ink ring-1 ring-line hover:bg-canvas hover:ring-ink/20;
+  }
+  .input {
+    @apply w-full rounded-xl border border-line bg-surface px-4 py-3 text-sm text-ink outline-none transition placeholder:text-muted/70 focus:border-accent focus:ring-4 focus:ring-accent/10;
+  }
+  .panel {
+    @apply rounded-2xl bg-surface ring-1 ring-line;
+  }
+  .table-base {
+    @apply w-full text-sm;
+  }
+  .table-base th {
+    @apply whitespace-nowrap border-b border-line px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted;
+  }
+  .table-base td {
+    @apply whitespace-nowrap border-b border-line px-4 py-3.5;
+  }
+  .table-base tr:last-child td {
+    @apply border-b-0;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -1,7 +1,8 @@
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
 
-const JWT_SECRET = process.env.JWT_SECRET!;
+// shortcut: segredo fixo para rodar sem .env; defina JWT_SECRET antes de publicar.
+const JWT_SECRET = process.env.JWT_SECRET ?? "fottu-offline-demo";
 const COOKIE_NAME = "sessao_usuario";
 
 export function gerarCodigoNumerico(tamanho = 6) {
