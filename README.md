@@ -7,7 +7,7 @@ Marketplace de fotos: o comprador acha a sessão, vê prévias com marca d'água
 ## Setup
 
 1. **Banco + Storage:** `npx supabase link --project-ref SEU_PROJETO` e `npx supabase db push`
-   (aplica `supabase/migrations/`: tabelas, RLS, buckets `previews` público e `originais` privado, `admins` e `perfis`).
+   (aplica `supabase/migrations/`: tabelas, RLS, buckets `previews` público e `originais` privado, e `perfis`).
 2. **Login por senha:** em *Authentication → URL Configuration*, coloque a URL do site em *Site URL* e adicione
    `https://SEU-SITE/auth/callback` e `http://localhost:3000/auth/callback` em *Redirect URLs*
    (é para onde apontam os links de confirmação e de redefinição de senha).
@@ -15,12 +15,12 @@ Marketplace de fotos: o comprador acha a sessão, vê prévias com marca d'água
 3. **SMTP próprio:** em *Authentication → Emails → SMTP Settings*, configure um SMTP (ex.: Resend).
    O SMTP padrão do Supabase só envia poucos e-mails por hora e não serve para produção.
 4. **Variáveis:** copie `.env.example` para `.env` e preencha (Supabase → *Project Settings → API Keys*;
-   Mercado Pago → *Credenciais de produção*). Seu e-mail de admin vai na tabela `admins` (Table Editor).
+   Mercado Pago → *Credenciais de produção*). Para virar admin, marque `is_admin = true` no seu perfil (Table Editor → perfis).
 5. `bun install && bun dev` → http://localhost:3000
 
 ## Fluxos
 
-- **Admin** (`/admin`, só e-mails da tabela `admins`): cria sessão → envia fotos (direto do navegador para o
+- **Admin** (`/admin`, só perfis com `is_admin = true`): cria sessão → envia fotos (direto do navegador para o
   Storage, prévia com marca d'água gerada no servidor; o nome do arquivo vira o código) → coloca online.
 - **Conta:** cadastro com e-mail e senha → fica pendente até você marcar `aprovado = true` em *Table Editor → perfis*.
   Esqueceu a senha → link por e-mail → `/redefinir-senha`.

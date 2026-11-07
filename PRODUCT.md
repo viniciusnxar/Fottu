@@ -16,7 +16,7 @@ Fottu is a photo marketplace run by the photographer. Buyers browse sessions, pr
 - Sessions ("anúncios") are identified by title, location and date; each photo has a short code (e.g. "020A7197") shown to the buyer.
 - Login is e-mail + password (Supabase Auth). New accounts need `perfis.aprovado = true`, set only in the database. Password reset by e-mail link.
 - Payment is Pix via Mercado Pago, confirmed by webhook + checkout polling.
-- Admin pages (only e-mails in the `admins` table): overview, sessions (create, upload photos, toggle online/offline, delete unsold photos), users, transactions.
+- Admin pages (only profiles with `perfis.is_admin = true`): overview, sessions (create, upload photos, toggle online/offline, delete unsold photos), users, transactions.
 
 ## Capabilities and Constraints
 - Next.js 14 app router, Tailwind.

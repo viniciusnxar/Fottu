@@ -1,10 +1,9 @@
 import Link from "next/link";
-import { ehAdmin, usuarioAtual } from "@/lib/auth";
+import { usuarioAtual } from "@/lib/auth";
 import LogoutButton from "@/components/LogoutButton";
 
 export default async function SiteHeader() {
   const sessao = await usuarioAtual();
-  const admin = await ehAdmin(sessao?.email);
 
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-canvas/90 backdrop-blur">
@@ -19,7 +18,7 @@ export default async function SiteHeader() {
           <Link href="/minhas-compras" className="rounded-full px-3 py-1.5 transition hover:bg-ink/5 hover:text-ink">
             Minhas compras
           </Link>
-          {admin && (
+          {sessao?.admin && (
             <Link href="/admin" className="rounded-full px-3 py-1.5 transition hover:bg-ink/5 hover:text-ink">
               Admin
             </Link>
