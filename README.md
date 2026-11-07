@@ -13,12 +13,12 @@ Marketplace de fotos: o comprador acha a sessão, vê prévias com marca d'água
 3. **SMTP próprio:** em *Authentication → Emails → SMTP Settings*, configure um SMTP (ex.: Resend).
    O SMTP padrão do Supabase só envia poucos e-mails por hora e não serve para produção.
 4. **Variáveis:** copie `.env.example` para `.env` e preencha (Supabase → *Project Settings → API Keys*;
-   Mercado Pago → *Credenciais de produção*). Coloque seu e-mail em `ADMIN_EMAILS`.
+   Mercado Pago → *Credenciais de produção*). Seu e-mail de admin vai na tabela `admins` (Table Editor).
 5. `bun install && bun dev` → http://localhost:3000
 
 ## Fluxos
 
-- **Admin** (`/admin`, só e-mails de `ADMIN_EMAILS`): cria sessão → envia fotos (direto do navegador para o
+- **Admin** (`/admin`, só e-mails da tabela `admins`): cria sessão → envia fotos (direto do navegador para o
   Storage, prévia com marca d'água gerada no servidor; o nome do arquivo vira o código) → coloca online.
 - **Comprador:** escolhe fotos → login com código por e-mail → Pix (QR + copia e cola) → confirmação automática
   → *Minhas compras* → download do original por URL assinada de 60 s.

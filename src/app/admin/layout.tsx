@@ -1,7 +1,7 @@
 import AdminSidebar from "@/components/AdminSidebar";
 import { exigirAdmin } from "@/lib/auth";
 
-// Só e-mails em ADMIN_EMAILS entram. As server actions checam de novo (acoes.ts).
+// Só e-mails da tabela public.admins entram. As server actions checam de novo (acoes.ts).
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   await exigirAdmin();
   return (
