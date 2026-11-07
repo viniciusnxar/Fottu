@@ -21,7 +21,7 @@ type PagamentoMP = {
 // Cria a cobrança Pix no Mercado Pago e grava o QR no pedido.
 export async function criarPix(venda: { id: string; email: string; valor_total: number }) {
   const expira = new Date(Date.now() + PIX_MINUTOS * 60_000);
-  const site = process.env.NEXT_PUBLIC_SITE_URL ?? "";
+  const site = (process.env.SITE_URL ?? "").replace(/\/+$/, "");
   const res = await fetch(MP, {
     method: "POST",
     headers: headers({ "X-Idempotency-Key": venda.id }),

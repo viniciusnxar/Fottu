@@ -14,7 +14,7 @@ Fottu is a photo marketplace run by the photographer. Buyers browse sessions, pr
 
 ## Operating Context
 - Sessions ("anúncios") are identified by title, location and date; each photo has a short code (e.g. "020A7197") shown to the buyer.
-- Login is passwordless: e-mail + code (Supabase Auth OTP).
+- Login is e-mail + password (Supabase Auth). New accounts need `perfis.aprovado = true`, set only in the database. Password reset by e-mail link.
 - Payment is Pix via Mercado Pago, confirmed by webhook + checkout polling.
 - Admin pages (only e-mails in the `admins` table): overview, sessions (create, upload photos, toggle online/offline, delete unsold photos), users, transactions.
 

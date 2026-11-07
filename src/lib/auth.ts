@@ -2,9 +2,17 @@ import "server-only";
 import { notFound, redirect } from "next/navigation";
 import { db, supabaseSessao } from "@/lib/supabase";
 
+// Conta logada E aprovada no banco. Conta não aprovada é tratada como deslogada em todo o site,
+// então revogar a aprovação corta o acesso na hora (compra, download, admin).
 export async function usuarioAtual() {
   const { data } = await supabaseSessao().auth.getUser();
-  return data.user ? { id: data.user.id, email: data.user.email! } : null;
+  if (!data.user) return null;
+  return (await estaAprovado(data.user.id)) ? { id: data.user.id, email: data.user.email! } : null;
+}
+
+export async function estaAprovado(usuarioId: string) {
+  const { data } = await db.from("perfis").select("aprovado").eq("id", usuarioId).maybeSingle();
+  return data?.aprovado === true;
 }
 
 // Admins = e-mails na tabela public.admins (gerenciada pelo painel do Supabase).

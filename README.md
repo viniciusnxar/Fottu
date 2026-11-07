@@ -6,10 +6,12 @@ Marketplace de fotos: o comprador acha a sessão, vê prévias com marca d'água
 
 ## Setup
 
-1. **Banco + Storage:** no Supabase, abra *SQL Editor* e rode `supabase/migrations/20261107000000_fottu.sql`
-   (cria as tabelas, liga RLS e os buckets `previews` público e `originais` privado).
-2. **Login por código:** em *Authentication → Emails → Templates → Magic Link*, troque o corpo por algo como
-   `Seu código Fottu: {{ .Token }}` (sem isso o Supabase manda link em vez de código).
+1. **Banco + Storage:** `npx supabase link --project-ref SEU_PROJETO` e `npx supabase db push`
+   (aplica `supabase/migrations/`: tabelas, RLS, buckets `previews` público e `originais` privado, `admins` e `perfis`).
+2. **Login por senha:** em *Authentication → URL Configuration*, coloque a URL do site em *Site URL* e adicione
+   `https://SEU-SITE/auth/callback` e `http://localhost:3000/auth/callback` em *Redirect URLs*
+   (é para onde apontam os links de confirmação e de redefinição de senha).
+   Opcional: desligue *Authentication → Sign In / Providers → Email → Confirm email*, já que toda conta passa por aprovação manual.
 3. **SMTP próprio:** em *Authentication → Emails → SMTP Settings*, configure um SMTP (ex.: Resend).
    O SMTP padrão do Supabase só envia poucos e-mails por hora e não serve para produção.
 4. **Variáveis:** copie `.env.example` para `.env` e preencha (Supabase → *Project Settings → API Keys*;
@@ -20,9 +22,11 @@ Marketplace de fotos: o comprador acha a sessão, vê prévias com marca d'água
 
 - **Admin** (`/admin`, só e-mails da tabela `admins`): cria sessão → envia fotos (direto do navegador para o
   Storage, prévia com marca d'água gerada no servidor; o nome do arquivo vira o código) → coloca online.
-- **Comprador:** escolhe fotos → login com código por e-mail → Pix (QR + copia e cola) → confirmação automática
+- **Conta:** cadastro com e-mail e senha → fica pendente até você marcar `aprovado = true` em *Table Editor → perfis*.
+  Esqueceu a senha → link por e-mail → `/redefinir-senha`.
+- **Comprador:** escolhe fotos → login → Pix (QR + copia e cola) → confirmação automática
   → *Minhas compras* → download do original por URL assinada de 60 s.
-- **Pagamento:** confirmado pelo webhook `/api/webhooks/mercadopago` (precisa de `NEXT_PUBLIC_SITE_URL` em https)
+- **Pagamento:** confirmado pelo webhook `/api/webhooks/mercadopago` (precisa de `SITE_URL` em https)
   e também pelo polling da tela de checkout, que consulta o Mercado Pago a cada 5 s — funciona em localhost.
 
 ## Segurança
