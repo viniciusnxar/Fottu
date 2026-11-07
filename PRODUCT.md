@@ -14,20 +14,20 @@ Fottu is a photo marketplace run by the photographer. Buyers browse sessions, pr
 
 ## Operating Context
 - Sessions ("anúncios") are identified by title, location and date; each photo has a short code (e.g. "020A7197") shown to the buyer.
-- Login is passwordless: e-mail + 6-digit code.
-- Payment is Pix (Mercado Pago in production).
-- Admin pages: overview, sessions (toggle online/offline), users, transactions.
+- Login is passwordless: e-mail + code (Supabase Auth OTP).
+- Payment is Pix via Mercado Pago, confirmed by webhook + checkout polling.
+- Admin pages (ADMIN_EMAILS only): overview, sessions (create, upload photos, toggle online/offline, delete unsold photos), users, transactions.
 
 ## Capabilities and Constraints
 - Next.js 14 app router, Tailwind.
-- Must run fully offline with no database and no `.env`: in-memory demo data, login code shown on screen, simulated Pix payment, local downloads. (Confirmed by the user, 2026-10-21.)
+- Backend is Supabase only: Auth, Postgres, Storage (public `previews`, private `originais`). The offline demo mode was retired by the user on 2026-11-07.
 - Copy is in Brazilian Portuguese.
 
 ## Brand Commitments
 - Name: Fottu. The previous visual style (ocean/sand/coral, "ticket" card) is retired by the user's choice; keep the name.
 
 ## Evidence on Hand
-No real photos, testimonials or contact details in the repo. Do not fabricate them; demo imagery is generated placeholders.
+No real photos, testimonials or contact details in the repo. Do not fabricate them.
 
 ## Product Principles
 - Photos first: the buyer is looking for themselves, so imagery leads and chrome recedes.

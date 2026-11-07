@@ -1,35 +1,24 @@
-import jwt from "jsonwebtoken";
-import { cookies } from "next/headers";
+import "server-only";
+import { notFound, redirect } from "next/navigation";
+import { supabaseSessao } from "@/lib/supabase";
 
-// shortcut: segredo fixo para rodar sem .env; defina JWT_SECRET antes de publicar.
-const JWT_SECRET = process.env.JWT_SECRET ?? "fottu-offline-demo";
-const COOKIE_NAME = "sessao_usuario";
-
-export function gerarCodigoNumerico(tamanho = 6) {
-  return Array.from({ length: tamanho }, () => Math.floor(Math.random() * 10)).join("");
+export async function usuarioAtual() {
+  const { data } = await supabaseSessao().auth.getUser();
+  return data.user ? { id: data.user.id, email: data.user.email! } : null;
 }
 
-export function criarSessao(usuarioId: string, email: string) {
-  const token = jwt.sign({ usuarioId, email }, JWT_SECRET, { expiresIn: "30d" });
-  cookies().set(COOKIE_NAME, token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 30
-  });
-}
+// Admins = e-mails listados em ADMIN_EMAILS (separados por vírgula).
+export const ehAdmin = (email?: string | null) =>
+  !!email &&
+  (process.env.ADMIN_EMAILS ?? "")
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .includes(email.toLowerCase());
 
-export function lerSessao(): { usuarioId: string; email: string } | null {
-  const token = cookies().get(COOKIE_NAME)?.value;
-  if (!token) return null;
-  try {
-    return jwt.verify(token, JWT_SECRET) as { usuarioId: string; email: string };
-  } catch {
-    return null;
-  }
-}
-
-export function encerrarSessao() {
-  cookies().delete(COOKIE_NAME);
+// Usar em toda página, server action e rota do admin (o layout sozinho não protege actions).
+export async function exigirAdmin() {
+  const u = await usuarioAtual();
+  if (!u) redirect("/login?redirect=/admin");
+  if (!ehAdmin(u.email)) notFound();
+  return u;
 }

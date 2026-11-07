@@ -1,13 +1,21 @@
-import { db, capaDe, fotoUrl, fotosDo } from "@/lib/db";
+import { db, previewUrl } from "@/lib/supabase";
 import { brl, dataCurta } from "@/lib/format";
 import ProductCard from "@/components/ProductCard";
 
-export default function HomePage({ searchParams }: { searchParams: { q?: string } }) {
-  const q = (searchParams.q ?? "").trim().toLowerCase();
-  const anuncios = db.anuncios
-    .filter((a) => a.status === "ONLINE")
-    .filter((a) => !q || `${a.titulo} ${a.local}`.toLowerCase().includes(q))
-    .sort((a, b) => b.data.getTime() - a.data.getTime());
+export default async function HomePage({ searchParams }: { searchParams: { q?: string } }) {
+  // Remove caracteres que têm significado no filtro do PostgREST
+  const q = (searchParams.q ?? "").replace(/[,()%*\\:"]/g, " ").trim();
+  let consulta = db
+    .from("anuncios")
+    .select("id, titulo, local, data, preco_base, capa:fotos(path_preview), total:fotos(count)")
+    .eq("status", "ONLINE")
+    .order("data", { ascending: false })
+    .order("codigo", { referencedTable: "capa" })
+    .limit(1, { referencedTable: "capa" });
+  if (q) consulta = consulta.or(`titulo.ilike.*${q}*,local.ilike.*${q}*`);
+  const { data, error } = await consulta;
+  if (error) throw error;
+  const anuncios = data ?? [];
 
   return (
     <main>
@@ -42,21 +50,18 @@ export default function HomePage({ searchParams }: { searchParams: { q?: string 
           </div>
         ) : (
           <div className="grid gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
-            {anuncios.map((a) => {
-              const capa = capaDe(a.id);
-              return (
-                <ProductCard
-                  key={a.id}
-                  id={a.id}
-                  titulo={a.titulo}
-                  local={a.local}
-                  data={dataCurta(a.data)}
-                  precoBase={brl(a.precoBase)}
-                  qtdFotos={fotosDo(a.id).length}
-                  capaUrl={capa && fotoUrl(capa.id, "preview")}
-                />
-              );
-            })}
+            {anuncios.map((a) => (
+              <ProductCard
+                key={a.id}
+                id={a.id}
+                titulo={a.titulo}
+                local={a.local}
+                data={dataCurta(a.data)}
+                precoBase={brl(a.preco_base)}
+                qtdFotos={a.total[0]?.count ?? 0}
+                capaUrl={a.capa[0] && previewUrl(a.capa[0].path_preview)}
+              />
+            ))}
           </div>
         )}
       </section>

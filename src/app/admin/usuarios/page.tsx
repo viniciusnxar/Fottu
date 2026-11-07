@@ -1,8 +1,14 @@
-import { db } from "@/lib/db";
+import { db } from "@/lib/supabase";
 import { brl, dataCurta } from "@/lib/format";
 
-export default function AdminUsuariosPage() {
-  const usuarios = [...db.usuarios].sort((a, b) => b.criadoEm.getTime() - a.criadoEm.getTime());
+export default async function AdminUsuariosPage() {
+  const [{ data: auth, error }, { data: vendas }] = await Promise.all([
+    // shortcut: mostra os 1000 cadastros mais recentes; acima disso, adicione paginação.
+    db.auth.admin.listUsers({ perPage: 1000 }),
+    db.from("vendas").select("usuario_id, valor_total").eq("status", "PAGO")
+  ]);
+  if (error) throw error;
+  const usuarios = [...auth.users].sort((a, b) => b.created_at.localeCompare(a.created_at));
 
   return (
     <div>
@@ -27,13 +33,13 @@ export default function AdminUsuariosPage() {
               </tr>
             )}
             {usuarios.map((u) => {
-              const vendas = db.vendas.filter((v) => v.usuarioId === u.id && v.status === "PAGO");
+              const minhas = (vendas ?? []).filter((v) => v.usuario_id === u.id);
               return (
                 <tr key={u.id}>
                   <td className="text-ink">{u.email}</td>
-                  <td className="text-muted">{dataCurta(u.criadoEm)}</td>
-                  <td className="tabular text-right">{vendas.length}</td>
-                  <td className="tabular text-right">{brl(vendas.reduce((s, v) => s + v.valorTotal, 0))}</td>
+                  <td className="text-muted">{dataCurta(u.created_at)}</td>
+                  <td className="tabular text-right">{minhas.length}</td>
+                  <td className="tabular text-right">{brl(minhas.reduce((s, v) => s + Number(v.valor_total), 0))}</td>
                 </tr>
               );
             })}

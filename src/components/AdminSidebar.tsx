@@ -17,7 +17,7 @@ export default function AdminSidebar() {
       <nav className="flex gap-1 overflow-x-auto px-4 py-3 md:flex-col md:px-3 md:py-8">
         <p className="hidden px-3 pb-3 text-xs font-medium uppercase tracking-wide text-muted md:block">Painel</p>
         {links.map((l) => {
-          const ativo = pathname === l.href;
+          const ativo = l.href === "/admin" ? pathname === l.href : pathname.startsWith(l.href);
           return (
             <Link
               key={l.href}

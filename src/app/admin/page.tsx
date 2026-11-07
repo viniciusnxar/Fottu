@@ -1,14 +1,23 @@
-import { db } from "@/lib/db";
+import { db } from "@/lib/supabase";
 import { brl } from "@/lib/format";
 
-export default function AdminDashboard() {
-  const pagas = db.vendas.filter((v) => v.status === "PAGO");
-  const receita = db.transacoes.reduce((s, t) => s + t.valor, 0);
-  const anunciosOnline = db.anuncios.filter((a) => a.status === "ONLINE").length;
+type ItemPago = { preco: number; fotos: { anuncio_id: string } };
 
-  const linhas = db.anuncios.map((a) => {
-    const itens = pagas.flatMap((v) => v.itens).filter((i) => db.fotos.find((f) => f.id === i.fotoId)?.anuncioId === a.id);
-    return { ...a, qtdVendas: itens.length, total: itens.reduce((s, i) => s + i.preco, 0) };
+export default async function AdminDashboard() {
+  const [vendas, transacoes, anuncios, itens] = await Promise.all([
+    db.from("vendas").select("id", { count: "exact", head: true }).eq("status", "PAGO"),
+    db.from("transacoes").select("valor"),
+    db.from("anuncios").select("id, titulo, local, status").order("data", { ascending: false }),
+    // shortcut: agrega em JS todos os itens pagos; com dezenas de milhares de vendas, troque por uma view/RPC com SUM/GROUP BY.
+    db.from("itens_venda").select("preco, fotos(anuncio_id), vendas!inner(status)").eq("vendas.status", "PAGO")
+  ]);
+
+  const receita = (transacoes.data ?? []).reduce((s, t) => s + Number(t.valor), 0);
+  const lista = anuncios.data ?? [];
+  const pagos = (itens.data ?? []) as unknown as ItemPago[];
+  const linhas = lista.map((a) => {
+    const meus = pagos.filter((i) => i.fotos.anuncio_id === a.id);
+    return { ...a, qtdVendas: meus.length, total: meus.reduce((s, i) => s + Number(i.preco), 0) };
   });
 
   return (
@@ -16,9 +25,9 @@ export default function AdminDashboard() {
       <h1 className="text-2xl font-semibold tracking-tight text-ink">Visão geral</h1>
 
       <dl className="panel mt-6 grid divide-y divide-line sm:grid-cols-3 sm:divide-x sm:divide-y-0">
-        <Indicador titulo="Vendas pagas" valor={String(pagas.length)} />
+        <Indicador titulo="Vendas pagas" valor={String(vendas.count ?? 0)} />
         <Indicador titulo="Receita total" valor={brl(receita)} />
-        <Indicador titulo="Anúncios online" valor={String(anunciosOnline)} />
+        <Indicador titulo="Anúncios online" valor={String(lista.filter((a) => a.status === "ONLINE").length)} />
       </dl>
 
       <h2 className="mb-3 mt-10 text-sm font-semibold text-ink">Vendas por anúncio</h2>
@@ -34,6 +43,13 @@ export default function AdminDashboard() {
             </tr>
           </thead>
           <tbody>
+            {linhas.length === 0 && (
+              <tr>
+                <td colSpan={5} className="py-12 text-center text-muted">
+                  Nenhum anúncio ainda.
+                </td>
+              </tr>
+            )}
             {linhas.map((l) => (
               <tr key={l.id}>
                 <td className="font-medium text-ink">{l.titulo}</td>

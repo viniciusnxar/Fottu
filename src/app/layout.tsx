@@ -6,7 +6,7 @@ import "./globals.css";
 // Fonte embutida no projeto: funciona offline, sem Google Fonts.
 const sans = localFont({ src: "../fonts/Geist-Variable.woff2", variable: "--font-sans", weight: "100 900" });
 
-// Dados vivem em memória: toda página é renderizada na hora.
+// Páginas dependem da sessão (cookies) e de dados vivos do Supabase.
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {

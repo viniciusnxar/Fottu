@@ -1,23 +1,25 @@
-import { revalidatePath } from "next/cache";
-import { db, capaDe, fotoUrl, fotosDo } from "@/lib/db";
-import { dataCurta } from "@/lib/format";
+import Link from "next/link";
+import { db, previewUrl } from "@/lib/supabase";
+import { brl, dataCurta } from "@/lib/format";
+import { alternarStatus } from "../acoes";
 
-async function alternarStatus(formData: FormData) {
-  "use server";
-  const anuncio = db.anuncios.find((a) => a.id === formData.get("id"));
-  if (anuncio) anuncio.status = anuncio.status === "ONLINE" ? "OFFLINE" : "ONLINE";
-  revalidatePath("/admin/anuncios");
-  revalidatePath("/"); // reflete no marketplace público também
-}
-
-export default function AdminAnunciosPage() {
-  const anuncios = [...db.anuncios].sort((a, b) => b.criadoEm.getTime() - a.criadoEm.getTime());
+export default async function AdminAnunciosPage() {
+  const { data, error } = await db
+    .from("anuncios")
+    .select("id, titulo, local, data, preco_base, status, capa:fotos(path_preview), total:fotos(count)")
+    .order("criado_em", { ascending: false })
+    .order("codigo", { referencedTable: "capa" })
+    .limit(1, { referencedTable: "capa" });
+  if (error) throw error;
+  const anuncios = data ?? [];
 
   return (
     <div>
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-4">
         <h1 className="text-2xl font-semibold tracking-tight text-ink">Anúncios</h1>
-        {/* TODO: link para formulário de criação de novo anúncio + upload de fotos */}
+        <Link href="/admin/anuncios/novo" className="btn-primary">
+          Nova sessão
+        </Link>
       </div>
 
       <div className="panel mt-6 overflow-x-auto">
@@ -26,28 +28,40 @@ export default function AdminAnunciosPage() {
             <tr>
               <th>Sessão</th>
               <th>Data</th>
+              <th className="!text-right">Preço</th>
               <th className="!text-right">Fotos</th>
               <th className="!text-right">Status</th>
             </tr>
           </thead>
           <tbody>
+            {anuncios.length === 0 && (
+              <tr>
+                <td colSpan={5} className="py-12 text-center text-muted">
+                  Nenhuma sessão ainda. Crie a primeira e envie as fotos.
+                </td>
+              </tr>
+            )}
             {anuncios.map((a) => {
-              const capa = capaDe(a.id);
               const online = a.status === "ONLINE";
               return (
                 <tr key={a.id}>
                   <td>
-                    <div className="flex items-center gap-3">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      {capa && <img src={fotoUrl(capa.id, "preview")} alt="" className="h-10 w-14 shrink-0 rounded-md object-cover" />}
+                    <Link href={`/admin/anuncios/${a.id}`} className="group flex items-center gap-3">
+                      {a.capa[0] ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={previewUrl(a.capa[0].path_preview)} alt="" className="h-10 w-14 shrink-0 rounded-md object-cover" />
+                      ) : (
+                        <span className="h-10 w-14 shrink-0 rounded-md bg-line" />
+                      )}
                       <div className="min-w-0">
-                        <p className="truncate font-medium text-ink">{a.titulo}</p>
+                        <p className="truncate font-medium text-ink group-hover:text-accent">{a.titulo}</p>
                         <p className="truncate text-xs text-muted">{a.local}</p>
                       </div>
-                    </div>
+                    </Link>
                   </td>
                   <td className="whitespace-nowrap text-muted">{dataCurta(a.data)}</td>
-                  <td className="tabular text-right">{fotosDo(a.id).length}</td>
+                  <td className="tabular text-right">{brl(a.preco_base)}</td>
+                  <td className="tabular text-right">{a.total[0]?.count ?? 0}</td>
                   <td className="text-right">
                     <form action={alternarStatus}>
                       <input type="hidden" name="id" value={a.id} />

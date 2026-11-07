@@ -1,8 +1,9 @@
 import AdminSidebar from "@/components/AdminSidebar";
+import { exigirAdmin } from "@/lib/auth";
 
-// TODO: proteger este layout com autenticação de Admin (tabela `Admin` do schema)
-// antes de ir pra produção — hoje qualquer pessoa acessa /admin.
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
+// Só e-mails em ADMIN_EMAILS entram. As server actions checam de novo (acoes.ts).
+export default async function AdminLayout({ children }: { children: React.ReactNode }) {
+  await exigirAdmin();
   return (
     <div className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-6xl flex-col md:flex-row">
       <AdminSidebar />

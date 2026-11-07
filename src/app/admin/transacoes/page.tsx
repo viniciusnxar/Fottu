@@ -1,8 +1,14 @@
-import { db } from "@/lib/db";
-import { brl } from "@/lib/format";
+import { db } from "@/lib/supabase";
+import { brl, dataHora } from "@/lib/format";
 
-export default function AdminTransacoesPage() {
-  const transacoes = [...db.transacoes].sort((a, b) => b.criadoEm.getTime() - a.criadoEm.getTime()).slice(0, 200);
+export default async function AdminTransacoesPage() {
+  const { data, error } = await db
+    .from("transacoes")
+    .select("id, venda_id, metodo, valor, criado_em, vendas(email)")
+    .order("criado_em", { ascending: false })
+    .limit(200);
+  if (error) throw error;
+  const transacoes = data ?? [];
 
   return (
     <div>
@@ -23,25 +29,19 @@ export default function AdminTransacoesPage() {
             {transacoes.length === 0 && (
               <tr>
                 <td colSpan={5} className="py-12 text-center text-muted">
-                  Nenhuma transação ainda. Faça uma compra de teste para ver aqui.
+                  Nenhuma transação ainda. Pagamentos confirmados aparecem aqui.
                 </td>
               </tr>
             )}
-            {transacoes.map((t) => {
-              const venda = db.vendas.find((v) => v.id === t.vendaId);
-              const email = db.usuarios.find((u) => u.id === venda?.usuarioId)?.email;
-              return (
-                <tr key={t.id}>
-                  <td className="tabular whitespace-nowrap text-muted">
-                    {new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(t.criadoEm)}
-                  </td>
-                  <td className="text-ink">{email}</td>
-                  <td className="uppercase text-muted">{t.metodo}</td>
-                  <td className="tabular text-muted">#{t.vendaId.slice(-8)}</td>
-                  <td className="tabular text-right">{brl(t.valor)}</td>
-                </tr>
-              );
-            })}
+            {transacoes.map((t) => (
+              <tr key={t.id}>
+                <td className="tabular whitespace-nowrap text-muted">{dataHora(t.criado_em)}</td>
+                <td className="text-ink">{(t.vendas as unknown as { email: string } | null)?.email}</td>
+                <td className="uppercase text-muted">{t.metodo}</td>
+                <td className="tabular text-muted">#{t.venda_id.slice(-8)}</td>
+                <td className="tabular text-right">{brl(t.valor)}</td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>

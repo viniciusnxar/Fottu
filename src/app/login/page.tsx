@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { supabaseBrowser } from "@/lib/supabase-browser";
 
 // Só aceita caminhos internos, para evitar redirecionamento aberto
 function destino() {
@@ -13,7 +14,6 @@ export default function LoginPage() {
   const [etapa, setEtapa] = useState<"email" | "codigo">("email");
   const [email, setEmail] = useState("");
   const [codigo, setCodigo] = useState("");
-  const [codigoDemo, setCodigoDemo] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(false);
   const router = useRouter();
@@ -23,16 +23,12 @@ export default function LoginPage() {
     setErro(null);
     setCarregando(true);
     try {
-      const res = await fetch("/api/auth/send-code", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email })
-      });
-      if (!res.ok) throw new Error();
-      setCodigoDemo((await res.json()).codigoDemo ?? null);
+      const { error } = await supabaseBrowser().auth.signInWithOtp({ email: email.trim().toLowerCase() });
+      if (error) throw error;
       setEtapa("codigo");
-    } catch {
-      setErro("Não foi possível enviar o código. Confira o e-mail e tente de novo.");
+    } catch (e) {
+      const limite = (e as { status?: number }).status === 429;
+      setErro(limite ? "Muitas tentativas. Aguarde um minuto e tente de novo." : "Não foi possível enviar o código. Confira o e-mail e tente de novo.");
     } finally {
       setCarregando(false);
     }
@@ -43,16 +39,12 @@ export default function LoginPage() {
     setErro(null);
     setCarregando(true);
     try {
-      const res = await fetch("/api/auth/verify-code", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, codigo })
-      });
-      if (!res.ok) throw new Error();
+      const { error } = await supabaseBrowser().auth.verifyOtp({ email: email.trim().toLowerCase(), token: codigo, type: "email" });
+      if (error) throw error;
       router.push(destino());
       router.refresh();
     } catch {
-      setErro("Código inválido ou expirado. Confira os 6 dígitos ou peça um novo código.");
+      setErro("Código inválido ou expirado. Confira os dígitos ou peça um novo código.");
     } finally {
       setCarregando(false);
     }
@@ -67,7 +59,7 @@ export default function LoginPage() {
         <p className="mt-2 text-sm text-muted">
           {etapa === "email"
             ? "Sem senha: enviamos um código de acesso para o seu e-mail."
-            : `Enviamos um código de 6 dígitos para ${email}.`}
+            : `Enviamos um código de acesso para ${email}.`}
         </p>
 
         {etapa === "email" ? (
@@ -91,16 +83,6 @@ export default function LoginPage() {
           </form>
         ) : (
           <form onSubmit={verificarCodigo} className="mt-6 space-y-3">
-            {codigoDemo && (
-              <div className="flex items-center justify-between gap-3 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900 ring-1 ring-amber-200">
-                <span>
-                  Modo offline: seu código é <strong className="tabular tracking-widest">{codigoDemo}</strong>
-                </span>
-                <button type="button" onClick={() => setCodigo(codigoDemo)} className="font-medium underline underline-offset-4">
-                  Usar
-                </button>
-              </div>
-            )}
             <label htmlFor="codigo" className="sr-only">
               Código de acesso
             </label>
@@ -109,13 +91,13 @@ export default function LoginPage() {
               inputMode="numeric"
               autoComplete="one-time-code"
               required
-              maxLength={6}
+              maxLength={10}
               placeholder="000000"
               value={codigo}
               onChange={(e) => setCodigo(e.target.value.replace(/\D/g, ""))}
               className="input tabular text-center text-2xl tracking-[0.4em]"
             />
-            <button disabled={carregando || codigo.length !== 6} className="btn-primary w-full">
+            <button disabled={carregando || codigo.length < 6} className="btn-primary w-full">
               {carregando ? "Verificando..." : "Confirmar"}
             </button>
             <button type="button" onClick={() => setEtapa("email")} className="w-full text-sm text-muted hover:text-ink">

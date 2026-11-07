@@ -1,16 +1,23 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { lerSessao } from "@/lib/auth";
-import { db, fotoUrl } from "@/lib/db";
+import { usuarioAtual } from "@/lib/auth";
+import { db, previewUrl } from "@/lib/supabase";
 import { brl, dataCurta } from "@/lib/format";
 
-export default function MinhasComprasPage() {
-  const sessao = lerSessao();
-  if (!sessao) redirect("/login?redirect=/minhas-compras");
+type Item = { fotos: { id: string; codigo: string; path_preview: string } };
 
-  const vendas = db.vendas
-    .filter((v) => v.usuarioId === sessao.usuarioId && v.status === "PAGO")
-    .sort((a, b) => b.pagoEm!.getTime() - a.pagoEm!.getTime());
+export default async function MinhasComprasPage() {
+  const usuario = await usuarioAtual();
+  if (!usuario) redirect("/login?redirect=/minhas-compras");
+
+  const { data, error } = await db
+    .from("vendas")
+    .select("id, valor_total, pago_em, itens_venda(fotos(id, codigo, path_preview))")
+    .eq("usuario_id", usuario.id)
+    .eq("status", "PAGO")
+    .order("pago_em", { ascending: false });
+  if (error) throw error;
+  const vendas = data ?? [];
 
   return (
     <main className="mx-auto max-w-5xl px-4 pb-24 pt-10 sm:px-6">
@@ -32,28 +39,24 @@ export default function MinhasComprasPage() {
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <p className="tabular text-sm font-medium text-ink">Pedido #{venda.id.slice(-8)}</p>
                 <p className="tabular text-sm text-muted">
-                  {dataCurta(venda.pagoEm!)} · {brl(venda.valorTotal)}
+                  {dataCurta(venda.pago_em!)} · {brl(venda.valor_total)}
                 </p>
               </div>
               <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-                {venda.itens.map((item) => {
-                  const foto = db.fotos.find((f) => f.id === item.fotoId)!;
-                  return (
-                    <a
-                      key={item.fotoId}
-                      href={fotoUrl(foto.id, "original")}
-                      download
-                      className="group overflow-hidden rounded-xl ring-1 ring-line transition hover:shadow-lift"
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={fotoUrl(foto.id, "preview")} alt={`Foto ${foto.codigo}`} className="aspect-[4/3] w-full object-cover" />
-                      <span className="flex items-center justify-between px-3 py-2.5 text-sm">
-                        <span className="tabular text-muted">{foto.codigo}</span>
-                        <span className="font-medium text-accent group-hover:underline">Baixar</span>
-                      </span>
-                    </a>
-                  );
-                })}
+                {(venda.itens_venda as unknown as Item[]).map(({ fotos: foto }) => (
+                  <a
+                    key={foto.id}
+                    href={`/api/foto/${foto.id}/download`}
+                    className="group overflow-hidden rounded-xl ring-1 ring-line transition hover:shadow-lift"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={previewUrl(foto.path_preview)} alt={`Foto ${foto.codigo}`} className="aspect-[4/3] w-full object-cover" />
+                    <span className="flex items-center justify-between px-3 py-2.5 text-sm">
+                      <span className="tabular text-muted">{foto.codigo}</span>
+                      <span className="font-medium text-accent group-hover:underline">Baixar</span>
+                    </span>
+                  </a>
+                ))}
               </div>
             </section>
           ))}

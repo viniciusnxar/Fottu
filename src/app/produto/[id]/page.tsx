@@ -1,14 +1,20 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { db, fotoUrl, fotosDo } from "@/lib/db";
+import { db, previewUrl } from "@/lib/supabase";
 import { brl, dataLonga } from "@/lib/format";
 import PhotoGrid from "@/components/PhotoGrid";
 
-export default function ProdutoPage({ params }: { params: { id: string } }) {
-  const anuncio = db.anuncios.find((a) => a.id === params.id);
-  if (!anuncio || anuncio.status === "OFFLINE") notFound();
+export default async function ProdutoPage({ params }: { params: { id: string } }) {
+  const { data: anuncio } = await db
+    .from("anuncios")
+    .select("id, titulo, local, data, preco_base, fotografo, fotos(id, codigo, path_preview, preco)")
+    .eq("id", params.id)
+    .eq("status", "ONLINE")
+    .order("codigo", { referencedTable: "fotos" })
+    .maybeSingle();
+  if (!anuncio) notFound();
 
-  const fotos = fotosDo(anuncio.id);
+  const fotos = anuncio.fotos;
 
   return (
     <main className="mx-auto max-w-6xl px-4 pb-24 pt-8 sm:px-6">
@@ -33,7 +39,7 @@ export default function ProdutoPage({ params }: { params: { id: string } }) {
           </div>
           <div>
             <dt className="text-muted">Preço por foto</dt>
-            <dd className="tabular font-medium text-ink">{brl(anuncio.precoBase)}</dd>
+            <dd className="tabular font-medium text-ink">{brl(anuncio.preco_base)}</dd>
           </div>
           {anuncio.fotografo && (
             <div>
@@ -52,8 +58,8 @@ export default function ProdutoPage({ params }: { params: { id: string } }) {
         fotos={fotos.map((f) => ({
           id: f.id,
           codigo: f.codigo,
-          urlPreview: fotoUrl(f.id, "preview"),
-          preco: f.preco
+          urlPreview: previewUrl(f.path_preview),
+          preco: Number(f.preco)
         }))}
       />
     </main>
